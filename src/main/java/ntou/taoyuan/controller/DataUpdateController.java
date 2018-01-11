@@ -1,5 +1,9 @@
 package ntou.taoyuan.controller;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -26,49 +30,51 @@ public class DataUpdateController {
 	ParkSpaceBean parkSpaceBean;
 	
 	@Scheduled(cron = "0 0/1 * * * ?") //每過一分鐘 自動更新每個停車場的車位資料
-	public void DataUpdate(){
-	  RestTemplate restTemplate = new RestTemplate();
-	  String str=restTemplate.getForObject(ServerURL.TaoyuanOpendataAPI,String.class);
-	  System.out.println(str);
+	public void DataUpdate() {
+		
+		ExecutorService cachedThreadPool = Executors.newScheduledThreadPool(10); //分配執行續
+		
+	    RestTemplate restTemplate = new RestTemplate();
+	    String str=restTemplate.getForObject(ServerURL.TaoyuanOpendataAPI,String.class);
+	    System.out.println(str);
 	  
-		try {
-			JSONObject jsonObjectFirst = new JSONObject(str);
-			if(jsonObjectFirst.getBoolean("success") == true) {
+			try {
+				JSONObject jsonObjectFirst = new JSONObject(str);
+				if(jsonObjectFirst.getBoolean("success") == true) {
 				
-				JSONObject result = jsonObjectFirst.getJSONObject("result");
+					JSONObject result = jsonObjectFirst.getJSONObject("result");
 			
-				JSONArray jsonArray = result.getJSONArray("records");
-
-				for (int i = 0; i < jsonArray.length(); i++) {
-				    JSONObject records = jsonArray.getJSONObject(i);
-				    String areaId = records.getString("areaId");
-				    String areaName = records.getString("areaName");
-				    String parkId = records.getString("parkId");
-				    String parkName = records.getString("parkName");
-				    String introduction = records.getString("introduction");
-				    String address = records.getString("address");
-				    Double wgsX = records.getDouble("wgsX");
-				    Double wgsY = records.getDouble("wgsY");
-				    int totalSpace = records.getInt("totalSpace");
-				    String surplusSpace = records.getString("surplusSpace");
-				    String payGuide =  records.getString("payGuide");
-				    				    
-				    parkSpaceBean = parkSpaceRepository.findByAddress(address);
-				    parkSpaceBean.setSurplusSpace(surplusSpace);
-				    parkSpaceBean.setTotalSpace(totalSpace);
-					parkSpaceRepository.save(parkSpaceBean);		
+					JSONArray jsonArray = result.getJSONArray("records");
 					
-				}
+					for (int i = 0; i < jsonArray.length(); i++) {
+						JSONObject records = jsonArray.getJSONObject(i);
+				  
+						String address = records.getString("address");
+						int totalSpace = records.getInt("totalSpace");
+						String surplusSpace = records.getString("surplusSpace");
+				    	
+						cachedThreadPool.execute(new Runnable(){ // 分配任務
+							
+					        @Override
+					        public void run(){
+					        	parkSpaceBean = parkSpaceRepository.findByAddress(address);
+								parkSpaceBean.setSurplusSpace(surplusSpace);
+								parkSpaceBean.setTotalSpace(totalSpace);
+								parkSpaceRepository.save(parkSpaceBean);	
+					        }
+					    });	
+					
+					}
 				
-			}else {
-				System.out.println("資料更新失敗");
-			}
+				}else {
+					System.out.println("資料更新失敗");
+				}
 			
-		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			System.out.println("已更新");
 		}
-		System.out.println("已更新");
-	}
 
 }
