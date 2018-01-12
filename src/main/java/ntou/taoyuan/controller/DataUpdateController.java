@@ -7,6 +7,8 @@ import java.util.concurrent.Executors;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,11 +35,13 @@ public class DataUpdateController {
 	public void DataUpdate() {
 		
 		ExecutorService cachedThreadPool = Executors.newScheduledThreadPool(10); //分配執行續
+		Logger log = LoggerFactory.getLogger(DataUpdateController.class);
 		
 	    RestTemplate restTemplate = new RestTemplate();
 	    String str=restTemplate.getForObject(ServerURL.TaoyuanOpendataAPI,String.class);
 	    System.out.println(str);
-	  
+	    log.info("抓取最新更新:{}", str);
+	    
 			try {
 				JSONObject jsonObjectFirst = new JSONObject(str);
 				if(jsonObjectFirst.getBoolean("success") == true) {
